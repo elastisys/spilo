@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import json
 import logging
 import os
 import re
@@ -40,7 +41,7 @@ def read_configuration():
     return options(args.scope, args.datadir, recovery_target_time, args.dry_run)
 
 
-def build_wale_command(command, datadir=None, backup=None):
+def build_wale_command(command, datadir=None, backup=None, extra_args=None):
     cmd = ['wal-g' if os.getenv('USE_WALG_RESTORE') == 'true' else 'wal-e'] + [command]
     if command == 'backup-fetch':
         if datadir is None or backup is None:
@@ -48,6 +49,8 @@ def build_wale_command(command, datadir=None, backup=None):
         cmd.extend([datadir, backup])
     elif command != 'backup-list':
         raise Exception("invalid {0} command {1}".format(cmd[0], command))
+    if extra_args:
+        cmd.extend(extra_args)
     return cmd
 
 
@@ -69,7 +72,7 @@ def choose_backup(backup_list, recovery_target_time):
 
     match_timestamp = match = None
     for backup in backup_list:
-        last_modified = parse(backup['last_modified'])
+        last_modified = parse(backup['start_time' if os.getenv('USE_WALG_RESTORE') == 'true' else 'last_modified'])
         if last_modified < recovery_target_time:
             if match is None or last_modified > match_timestamp:
                 match = backup
@@ -79,10 +82,15 @@ def choose_backup(backup_list, recovery_target_time):
 
 
 def list_backups(env):
-    backup_list_cmd = build_wale_command('backup-list')
-    output = subprocess.check_output(backup_list_cmd, env=env)
-    reader = csv.DictReader(fix_output(output), dialect='excel-tab')
-    return list(reader)
+    if os.getenv('USE_WALG_RESTORE') == 'true':
+        backup_list_cmd = build_wale_command('backup-list', extra_args=['--detail', '--json'])
+        output = subprocess.check_output(backup_list_cmd, env=env)
+        return json.loads(output or 'null')
+    else:
+        backup_list_cmd = build_wale_command('backup-list')
+        output = subprocess.check_output(backup_list_cmd, env=env)
+        reader = csv.DictReader(fix_output(output), dialect='excel-tab')
+        return list(reader)
 
 
 def get_clone_envdir():
