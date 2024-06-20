@@ -39,29 +39,31 @@ else
     POOL_SIZE=(--pool-size "$POOL_SIZE")
 fi
 
-BEFORE=""
-LEFT=0
-
 NOW=$(date +%s -u)
 readonly NOW
-while read -r name last_modified rest; do
-    last_modified=$(date +%s -ud "$last_modified")
-    if [ $(((NOW-last_modified)/86400)) -ge $DAYS_TO_RETAIN ]; then
-        if [ -z "$BEFORE" ] || [ "$last_modified" -gt "$BEFORE_TIME" ]; then
-            BEFORE_TIME=$last_modified
-            BEFORE=$name
-        fi
-    else
-        # count how many backups will remain after we remove everything up to certain date
-        ((LEFT=LEFT+1))
-    fi
-done < <($WAL_E backup-list 2> /dev/null | sed '0,/^name\s*\(last_\)\?modified\s*/d')
 
-# we want keep at least N backups even if the number of days exceeded
-if [ -n "$BEFORE" ] && [ $LEFT -ge $DAYS_TO_RETAIN ]; then
-    if [[ "$USE_WALG_BACKUP" == "true" ]]; then
-        $WAL_E delete before FIND_FULL "$BEFORE" --confirm
-    else
+if [[ "$USE_WALG_BACKUP" == "true" ]]; then
+    AFTER=$((NOW-(DAYS_TO_RETAIN*86400)))
+    $WAL_E delete --use-sentinel-time --confirm retain FIND_FULL "$DAYS_TO_RETAIN" --after "$(date --iso-8601=seconds -d @"${AFTER}")"
+else
+    BEFORE=""
+    LEFT=0
+
+    while read -r name last_modified rest; do
+        last_modified=$(date +%s -ud "$last_modified")
+        if [ $(((NOW-last_modified)/86400)) -ge $DAYS_TO_RETAIN ]; then
+            if [ -z "$BEFORE" ] || [ "$last_modified" -gt "$BEFORE_TIME" ]; then
+                BEFORE_TIME=$last_modified
+                BEFORE=$name
+            fi
+        else
+            # count how many backups will remain after we remove everything up to certain date
+            ((LEFT=LEFT+1))
+        fi
+    done < <($WAL_E backup-list 2> /dev/null | sed '0,/^name\s*\(last_\)\?modified\s*/d')
+
+    # we want keep at least N backups even if the number of days exceeded
+    if [ -n "$BEFORE" ] && [ $LEFT -ge $DAYS_TO_RETAIN ]; then
         $WAL_E delete --confirm before "$BEFORE"
     fi
 fi
