@@ -32,6 +32,7 @@ def perform_pitr(postgresql, cluster_version, bin_version, config):
     config[config['method']]['command'] = 'true'
     try:
         if bin_version == cluster_version:
+            os.chmod('/home/postgres/pgdata/pgroot/data', 0o700)
             if not postgresql.bootstrap.bootstrap(config):
                 raise Exception('Point-in-time recovery failed')
         elif not postgresql.start_old_cluster(config, cluster_version):
