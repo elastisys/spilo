@@ -166,7 +166,7 @@ def run_clone_from_s3(options):
 
     backup_name, update_envdir = find_backup(options.recovery_target_time, env)
 
-    backup_fetch_cmd = build_wale_command('backup-fetch', options.datadir, backup_name)
+    backup_fetch_cmd = build_walg_command('backup-fetch', options.datadir, backup_name)
     logger.info("cloning cluster %s using %s", options.name, ' '.join(backup_fetch_cmd))
     if not options.dry_run:
         ret = subprocess.call(backup_fetch_cmd, env=env)
