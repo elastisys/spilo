@@ -126,10 +126,10 @@ for version in $DEB_PG_SUPPORTED_VERSIONS; do
         "postgresql-${version}-pg-stat-kcache" \
         "${EXTRAS[@]}"
 
-    # Clean up timescaledb versions except the last 5 minor versions
+    # Clean up timescaledb versions except the last 10 minor versions
     exclude_patterns=()
     versions=$(find "/usr/lib/postgresql/$version/lib/" -name 'timescaledb-2.*.so' | sed -rn 's/.*timescaledb-([1-9]+\.[0-9]+\.[0-9]+)\.so$/\1/p' | sort -rV)
-    latest_minor_versions=$(echo "$versions" | awk -F. '{print $1"."$2}' | uniq | head -n 5)
+    latest_minor_versions=$(echo "$versions" | awk -F. '{print $1"."$2}' | uniq | head -n 10)
     for minor in $latest_minor_versions; do
         for full_version in $(echo "$versions" | grep "^$minor"); do
             exclude_patterns+=(! -name timescaledb-"${full_version}".so)
